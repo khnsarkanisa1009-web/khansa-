@@ -1,0 +1,128 @@
+import pygame
+import random
+
+# Inisialisasi pygame
+pygame.init()
+
+# Ukuran layar dan grid
+WIDTH, HEIGHT = 600, 700
+ROWS, COLS = 10, 10
+CELL_SIZE = 50
+BOARD_TOP = 100
+
+# Warna
+WHITE = (255, 255, 255)
+GRAY = (180, 180, 180)
+BLACK = (0, 0, 0)
+BLUE = (70, 130, 180)
+GREEN = (50, 205, 50)
+RED = (220, 20, 60)
+COLORS = [BLUE, GREEN, RED]
+
+# Setup layar
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Block Blast - Simple Edition")
+
+# Font
+font = pygame.font.SysFont("arial", 24)
+
+# Grid papan
+board = [[0]*COLS for _ in range(ROWS)]
+
+# Blok bentuk
+SHAPES = [
+    [[1, 1],
+     [1, 1]],  # Kotak 2x2
+     
+    [[1, 1, 1, 1]],  # Garis 4
+     
+    [[1, 1, 1],
+     [0, 1, 0]],  # Plus
+    
+    [[1, 1, 0],
+     [0, 1, 1]],  # Zigzag
+]
+
+def draw_board():
+    for y in range(ROWS):
+        for x in range(COLS):
+            rect = pygame.Rect(x*CELL_SIZE, y*CELL_SIZE+BOARD_TOP, CELL_SIZE, CELL_SIZE)
+            color = GRAY if board[y][x] == 0 else COLORS[board[y][x]-1]
+            pygame.draw.rect(screen, color, rect)
+            pygame.draw.rect(screen, BLACK, rect, 2)
+
+def can_place(shape, grid_x, grid_y):
+    for y, row in enumerate(shape):
+        for x, val in enumerate(row):
+            if val:
+                bx, by = grid_x + x, grid_y + y
+                if bx < 0 or bx >= COLS or by < 0 or by >= ROWS or board[by][bx] != 0:
+                    return False
+    return True
+
+def place_shape(shape, grid_x, grid_y, color_id):
+    for y, row in enumerate(shape):
+        for x, val in enumerate(row):
+            if val:
+                board[grid_y + y][grid_x + x] = color_id
+
+def clear_lines():
+    global board
+    full_rows = [i for i, row in enumerate(board) if all(row)]
+    full_cols = [j for j in range(COLS) if all(board[i][j] for i in range(ROWS))]
+    
+    for i in full_rows:
+        board[i] = [0]*COLS
+    for j in full_cols:
+        for i in range(ROWS):
+            board[i][j] = 0
+    return len(full_rows) + len(full_cols)
+
+def draw_shape_preview(shape, color, pos):
+    x, y = pos
+    for i, row in enumerate(shape):
+        for j, val in enumerate(row):
+            if val:
+                rect = pygame.Rect(x + j*CELL_SIZE, y + i*CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                pygame.draw.rect(screen, color, rect)
+                pygame.draw.rect(screen, BLACK, rect, 2)
+
+def main():
+    clock = pygame.time.Clock()
+    running = True
+    score = 0
+
+    # Blok acak awal
+    current_shape = random.choice(SHAPES)
+    color_id = random.randint(1, len(COLORS))
+
+    while running:
+        screen.fill(WHITE)
+        draw_board()
+
+        # Info
+        score_text = font.render(f"Score: {score}", True, BLACK)
+        screen.blit(score_text, (20, 20))
+        draw_shape_preview(current_shape, COLORS[color_id-1], (400, 150))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = event.pos
+                grid_x, grid_y = mx // CELL_SIZE, (my - BOARD_TOP) // CELL_SIZE
+                if can_place(current_shape, grid_x, grid_y):
+                    place_shape(current_shape, grid_x, grid_y, color_id)
+                    cleared = clear_lines()
+                    score += 10 + cleared * 20
+                    current_shape = random.choice(SHAPES)
+                    color_id = random.randint(1, len(COLORS))
+
+        pygame.display.flip()
+        clock.tick(30)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
