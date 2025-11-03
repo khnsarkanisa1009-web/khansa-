@@ -1,128 +1,200 @@
-import pygame
-import random
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Block Blast Sederhana</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #222;
+    color: #fff;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
 
-# Inisialisasi pygame
-pygame.init()
+  h1 {
+    margin-bottom: 10px;
+  }
 
-# Ukuran layar dan grid
-WIDTH, HEIGHT = 600, 700
-ROWS, COLS = 10, 10
-CELL_SIZE = 50
-BOARD_TOP = 100
+  #game {
+    display: grid;
+    grid-template-columns: repeat(10, 35px);
+    grid-template-rows: repeat(10, 35px);
+    gap: 2px;
+    margin: 20px auto;
+    background: #444;
+    width: max-content;
+    padding: 5px;
+    border-radius: 10px;
+  }
 
-# Warna
-WHITE = (255, 255, 255)
-GRAY = (180, 180, 180)
-BLACK = (0, 0, 0)
-BLUE = (70, 130, 180)
-GREEN = (50, 205, 50)
-RED = (220, 20, 60)
-COLORS = [BLUE, GREEN, RED]
+  .cell {
+    width: 35px;
+    height: 35px;
+    background: #333;
+    border-radius: 5px;
+    cursor: pointer;
+  }
 
-# Setup layar
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Block Blast - Simple Edition")
+  .filled {
+    background: #29b6f6;
+  }
 
-# Font
-font = pygame.font.SysFont("arial", 24)
+  #nextShape {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+  }
 
-# Grid papan
-board = [[0]*COLS for _ in range(ROWS)]
+  .block {
+    display: inline-block;
+    background: #ffca28;
+    width: 25px;
+    height: 25px;
+    margin: 1px;
+    border-radius: 4px;
+  }
 
-# Blok bentuk
-SHAPES = [
-    [[1, 1],
-     [1, 1]],  # Kotak 2x2
-     
-    [[1, 1, 1, 1]],  # Garis 4
-     
-    [[1, 1, 1],
-     [0, 1, 0]],  # Plus
-    
-    [[1, 1, 0],
-     [0, 1, 1]],  # Zigzag
-]
+  button {
+    background: #29b6f6;
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
 
-def draw_board():
-    for y in range(ROWS):
-        for x in range(COLS):
-            rect = pygame.Rect(x*CELL_SIZE, y*CELL_SIZE+BOARD_TOP, CELL_SIZE, CELL_SIZE)
-            color = GRAY if board[y][x] == 0 else COLORS[board[y][x]-1]
-            pygame.draw.rect(screen, color, rect)
-            pygame.draw.rect(screen, BLACK, rect, 2)
+  button:hover {
+    background: #0288d1;
+  }
+</style>
+</head>
+<body>
+  <h1>🧱 Block Blast Sederhana</h1>
+  <p>Klik di papan untuk menempatkan blok!</p>
+  <div id="game"></div>
+  <div id="nextShape"></div>
+  <button id="resetBtn">Reset Game</button>
 
-def can_place(shape, grid_x, grid_y):
-    for y, row in enumerate(shape):
-        for x, val in enumerate(row):
-            if val:
-                bx, by = grid_x + x, grid_y + y
-                if bx < 0 or bx >= COLS or by < 0 or by >= ROWS or board[by][bx] != 0:
-                    return False
-    return True
+<script>
+  const ROWS = 10;
+  const COLS = 10;
+  const gameBoard = document.getElementById("game");
+  const nextShapeContainer = document.getElementById("nextShape");
 
-def place_shape(shape, grid_x, grid_y, color_id):
-    for y, row in enumerate(shape):
-        for x, val in enumerate(row):
-            if val:
-                board[grid_y + y][grid_x + x] = color_id
+  let board = [];
+  let nextShape = [];
 
-def clear_lines():
-    global board
-    full_rows = [i for i, row in enumerate(board) if all(row)]
-    full_cols = [j for j in range(COLS) if all(board[i][j] for i in range(ROWS))]
-    
-    for i in full_rows:
-        board[i] = [0]*COLS
-    for j in full_cols:
-        for i in range(ROWS):
-            board[i][j] = 0
-    return len(full_rows) + len(full_cols)
+  // Daftar bentuk blok
+  const SHAPES = [
+    [[1,1],[1,1]],
+    [[1,1,1]],
+    [[1],[1],[1]],
+    [[1,1,1],[0,1,0]],
+    [[1,1,0],[0,1,1]]
+  ];
 
-def draw_shape_preview(shape, color, pos):
-    x, y = pos
-    for i, row in enumerate(shape):
-        for j, val in enumerate(row):
-            if val:
-                rect = pygame.Rect(x + j*CELL_SIZE, y + i*CELL_SIZE, CELL_SIZE, CELL_SIZE)
-                pygame.draw.rect(screen, color, rect)
-                pygame.draw.rect(screen, BLACK, rect, 2)
+  function createBoard() {
+    board = [];
+    gameBoard.innerHTML = "";
+    for (let r = 0; r < ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < COLS; c++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        cell.addEventListener("click", () => placeShape(r, c));
+        gameBoard.appendChild(cell);
+        row.push(0);
+      }
+      board.push(row);
+    }
+  }
 
-def main():
-    clock = pygame.time.Clock()
-    running = True
-    score = 0
+  function drawBoard() {
+    const cells = document.querySelectorAll(".cell");
+    cells.forEach(cell => {
+      const r = parseInt(cell.dataset.row);
+      const c = parseInt(cell.dataset.col);
+      if (board[r][c]) cell.classList.add("filled");
+      else cell.classList.remove("filled");
+    });
+  }
 
-    # Blok acak awal
-    current_shape = random.choice(SHAPES)
-    color_id = random.randint(1, len(COLORS))
+  function newShape() {
+    nextShapeContainer.innerHTML = "";
+    nextShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+    nextShape.forEach(row => {
+      const rowDiv = document.createElement("div");
+      row.forEach(val => {
+        const block = document.createElement("div");
+        if (val) block.classList.add("block");
+        rowDiv.appendChild(block);
+      });
+      nextShapeContainer.appendChild(rowDiv);
+    });
+  }
 
-    while running:
-        screen.fill(WHITE)
-        draw_board()
+  function canPlace(r, c) {
+    for (let y = 0; y < nextShape.length; y++) {
+      for (let x = 0; x < nextShape[y].length; x++) {
+        if (nextShape[y][x]) {
+          const newR = r + y;
+          const newC = c + x;
+          if (newR >= ROWS || newC >= COLS || board[newR][newC]) return false;
+        }
+      }
+    }
+    return true;
+  }
 
-        # Info
-        score_text = font.render(f"Score: {score}", True, BLACK)
-        screen.blit(score_text, (20, 20))
-        draw_shape_preview(current_shape, COLORS[color_id-1], (400, 150))
+  function placeShape(r, c) {
+    if (!canPlace(r, c)) return alert("Tidak bisa menempatkan di sini!");
+    for (let y = 0; y < nextShape.length; y++) {
+      for (let x = 0; x < nextShape[y].length; x++) {
+        if (nextShape[y][x]) {
+          board[r + y][c + x] = 1;
+        }
+      }
+    }
+    clearLines();
+    drawBoard();
+    newShape();
+  }
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+  function clearLines() {
+    // Hapus baris penuh
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r].every(cell => cell === 1)) {
+        board.splice(r, 1);
+        board.unshift(new Array(COLS).fill(0));
+      }
+    }
 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mx, my = event.pos
-                grid_x, grid_y = mx // CELL_SIZE, (my - BOARD_TOP) // CELL_SIZE
-                if can_place(current_shape, grid_x, grid_y):
-                    place_shape(current_shape, grid_x, grid_y, color_id)
-                    cleared = clear_lines()
-                    score += 10 + cleared * 20
-                    current_shape = random.choice(SHAPES)
-                    color_id = random.randint(1, len(COLORS))
+    // Hapus kolom penuh
+    for (let c = 0; c < COLS; c++) {
+      if (board.every(row => row[c] === 1)) {
+        for (let r = 0; r < ROWS; r++) {
+          board[r][c] = 0;
+        }
+      }
+    }
+  }
 
-        pygame.display.flip()
-        clock.tick(30)
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    createBoard();
+    newShape();
+  });
 
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
+  // Inisialisasi game
+  createBoard();
+  newShape();
+</script>
+</body>
+</html>
